@@ -1,19 +1,19 @@
 const express = require("express");
 const cors = require("cors");
-const XLSX = require("xlsx");
-const fs = require("fs");
+const connectDB = require("./db");
+const Waitlist = require("./models/Waitlist");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+connectDB();
+
 app.get("/", (req, res) => {
-  res.send("Mealy backend is running");
+  res.send("Mealy backend running with MongoDB");
 });
 
-const FILE_PATH = "./waitlist.xlsx";
-
-app.post("/api/waitlist", (req, res) => {
+app.post("/api/waitlist", async (req, res) => {
   try {
     const { name, email, device } = req.body;
 
@@ -21,46 +21,21 @@ app.post("/api/waitlist", (req, res) => {
       return res.status(400).json({ message: "Missing fields" });
     }
 
-    const FILE_PATH = "./waitlist.xlsx";
-    let workbook;
-    let worksheet;
-    let data = [];
-
-    if (fs.existsSync(FILE_PATH)) {
-      workbook = XLSX.readFile(FILE_PATH);
-      worksheet = workbook.Sheets["Waitlist"];
-      data = worksheet ? XLSX.utils.sheet_to_json(worksheet) : [];
-    } else {
-      workbook = XLSX.utils.book_new();
+    const existing = await Waitlist.findOne({ email });
+    if (existing) {
+      return res.status(409).json({ message: "Email already registered" });
     }
 
-    data.push({
-      Name: name,
-      Email: email,
-      Device: device,
-      Date: new Date().toLocaleString()
-    });
+    await Waitlist.create({ name, email, device });
 
-    const newWorksheet = XLSX.utils.json_to_sheet(data);
-
-    // IMPORTANT: Replace sheet instead of appending again
-    workbook.Sheets["Waitlist"] = newWorksheet;
-
-    if (!workbook.SheetNames.includes("Waitlist")) {
-      workbook.SheetNames.push("Waitlist");
-    }
-
-    XLSX.writeFile(workbook, FILE_PATH);
-
-    res.json({ message: "Successfully added to waitlist" });
+    res.json({ message: "Added to waitlist successfully" });
   } catch (error) {
-    console.error("Excel write error:", error);
-    res.status(500).json({ message: "Failed to save data" });
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
