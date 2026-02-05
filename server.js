@@ -65,6 +65,19 @@ app.post("/api/waitlist", async (req, res) => {
 });
 
 /* ============================
+   WAITLIST COUNT
+============================ */
+app.get("/api/waitlist/count", async (req, res) => {
+  try {
+    const count = await Waitlist.countDocuments();
+    res.json({ count });
+  } catch (error) {
+    console.error("Error fetching waitlist count:", error);
+    res.status(500).json({ count: 0 });
+  }
+});
+
+/* ============================
    Server start
 ============================ */
 const PORT = process.env.PORT || 5000;
